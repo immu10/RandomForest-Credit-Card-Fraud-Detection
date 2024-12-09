@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .container {
+            width: 90%;
+            margin: auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: #16213e;
+            color: #e0e0e0;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .transaction-form {
+            background-color: #0f3460;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            padding: 25px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 1px solid #4a4e69;
+            border-radius: 6px;
+            background-color: #2a2a3a;
+            color: #e0e0e0;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #5d4f79;
+            box-shadow: 0 0 0 2px rgba(93, 79, 121, 0.4);
+        }
+
+        .submit-btn {
+            grid-column: 1 / -1;
+            padding: 12px;
+            background-color: #5d4f79;
+            color: #e0e0e0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background-color: #6f5f8d;
+        }
+
+        @media (max-width: 768px) {
+            .transaction-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Fraud Detection Input</h1>
+    </header>
+    <div class="container">
+        <form id="transactionForm" class="transaction-form">
+            <div class="form-group">
+                <label for="transaction_id">Transaction ID</label>
+                <input type="text" id="transaction_id" name="transaction_id" placeholder="Enter Transaction ID"
+                    required>
+            </div>
+
+            <div class="form-group">
+                <label for="hour_of_day">Hour of Day</label>
+                <input type="number" id="hour_of_day" name="hour_of_day" min="0" max="23"
+                    placeholder="Enter Hour (0-23)" required>
+            </div>
+
+            <div class="form-group">
+                <label for="category">Category</label>
+                <input type="text" id="category" name="category" placeholder="Enter Transaction Category" required>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount (USD)</label>
+                <input type="number" id="amount" name="amount" step="0.01" min="0" placeholder="Enter Amount" required>
+            </div>
+
+            <div class="form-group">
+                <label for="merchant">Merchant</label>
+                <input type="text" id="merchant" name="merchant" placeholder="Enter Merchant Name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="job">Job</label>
+                <input type="text" id="job" name="job" placeholder="Enter Job" required>
+            </div>
+
+            <button type="submit" class="submit-btn">Analyze Transaction</button>
+        </form>
+        <div id="predictionBox" class="mt-6 hidden p-4 rounded border">
+            <h2 class="font-bold mb-2">Prediction Result</h2>
+            <p id="fraudProbability" class="mb-2"></p>
+            <p id="fraudStatus" class="mb-2"></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('transactionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Gather form data
+            const formData = {
+                transaction_id: document.getElementById('transaction_id').value,
+                hour_of_day: parseInt(document.getElementById('hour_of_day').value),
+                category: document.getElementById('category').value,
+                'amount(usd)': parseFloat(document.getElementById('amount').value),
+                merchant: document.getElementById('merchant').value,
+                job: document.getElementById('job').value
+            };
+
+            // Send data to server
+            fetch('http://127.0.0.1:5000/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const predictionBox = document.getElementById('predictionBox');
+                const fraudProbability = document.getElementById('fraudProbability');
+                const fraudStatus = document.getElementById('fraudStatus');
+
+                // Update prediction box
+                predictionBox.classList.remove('hidden');
+                
+                // Fraud Probability
+                const probability = data.prediction.fraud_proba[0] * 100;
+                fraudProbability.textContent = `Fraud Probability: ${probability.toFixed(2)}%`;
+                
+                // Fraud Status
+                const isFraudulent = data.prediction.fraud_pred[0];
+                fraudStatus.textContent = `Fraud Status: ${isFraudulent ? 'Potentially Fraudulent' : 'Likely Legitimate'}`;
+                
+                // Color-code the box based on fraud risk
+                predictionBox.classList.remove('bg-green-100', 'bg-red-100');
+                predictionBox.classList.add(isFraudulent ? 'bg-red-100' : 'bg-green-100');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to get prediction. Please try again.');
+            });
+            e.preventDefault();
+
+            // Capture input values
+            const transactionData = {
+                transaction_id: document.getElementById('transaction_id').value,
+                hour_of_day: parseInt(document.getElementById('hour_of_day').value),
+                category: document.getElementById('category').value,
+                'amount(usd)': parseFloat(document.getElementById('amount').value),
+                merchant: document.getElementById('merchant').value,
+                job: document.getElementById('job').value
+            };
+
+
+            // Log the transaction data (you'll replace this with model integration)
+            console.log('Transaction Data:', transactionData);
+            fetch('http://localhost:5000/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(transactionData)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Server Response:', data);
+                    // Handle the server response here (e.g., display on the webpage)
+                    //alert(`Prediction Response: ${JSON.stringify(data)}`);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Check console for details.');
+                });
+                
+
+
+            // Optional: Clear the form after submission
+            this.reset();
+        });
+    </script>
+</body>
+
+</html>
